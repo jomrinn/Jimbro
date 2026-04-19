@@ -112,9 +112,9 @@
     .rest-txt{font-size:13px;color:var(--text-muted);line-height:1.6;}
 
     /* ── DAY SWITCHER ── */
-    .day-switch{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;}
+    .day-switch{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;}
     .day-switch::-webkit-scrollbar{display:none;}
-    .ds-btn{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:4px;cursor:pointer;}
+    .ds-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:7px 4px;border-radius:4px;cursor:pointer;text-align:center;}
     .ds-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
 
     /* ── PLAN TAB ── */
