@@ -93,6 +93,9 @@
     .hero-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;}
     .hero-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;letter-spacing:1px;text-transform:uppercase;line-height:1;margin-bottom:8px;}
     .hero-meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap;}
+    .hero-quote{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);}
+    .hero-quote-text{font-family:'Barlow',sans-serif;font-style:italic;font-size:13px;color:var(--text-dim);line-height:1.55;}
+    .hero-quote-author{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:5px;letter-spacing:.5px;}
 
     /* ── PROGRESS BAR ── */
     .prog-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin:14px 0 4px;}
@@ -206,6 +209,25 @@
 
     ::-webkit-scrollbar{width:3px;}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+    /* ── EXPORT / LOG ── */
+    .export-row{display:flex;gap:8px;margin-bottom:14px;}
+    .btn-export{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;padding:11px 8px;border-radius:4px;cursor:pointer;text-align:center;}
+    .btn-export:active{background:var(--surface2);}
+    .btn-export.accent{border-color:var(--accent);color:var(--accent);}
+    .log-session{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+    .log-sess-hdr{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+    .log-sess-hdr:active{background:var(--surface2);}
+    .log-sess-date{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);}
+    .log-sess-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:.5px;text-transform:uppercase;}
+    .log-sess-sets{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);}
+    .log-ex-block{border-top:1px solid var(--border);padding:10px 16px;}
+    .log-ex-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;}
+    .log-set-row{display:flex;gap:12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);padding:2px 0;}
+    .log-set-row span{color:var(--text);}
+    .hist-tabs{display:flex;gap:8px;margin-bottom:12px;}
+    .ht-btn{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:9px 8px;border-radius:4px;cursor:pointer;text-align:center;}
+    .ht-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
   </style>
 </head>
 <body>
@@ -302,26 +324,46 @@
 
   <!-- ══ PROGRESO ══ -->
   <section id="tab-progreso" class="tab">
-    <div class="sec-lbl">Registrar Medición</div>
-    <div class="prog-form">
-      <div class="prog-form-ttl">Nueva Entrada</div>
-      <div class="form-grid">
-        <div class="form-group"><div class="form-lbl">Peso (kg)</div><input class="form-inp" type="number" id="inPeso" step="0.1" placeholder="85.0"></div>
-        <div class="form-group"><div class="form-lbl">Fecha</div><input class="form-inp" type="date" id="inFecha"></div>
-        <div class="form-group"><div class="form-lbl">Cintura (cm)</div><input class="form-inp" type="number" id="inCintura" step="0.5" placeholder="—"></div>
-        <div class="form-group"><div class="form-lbl">Pecho (cm)</div><input class="form-inp" type="number" id="inPecho" step="0.5" placeholder="—"></div>
+    <div class="hist-tabs">
+      <button class="ht-btn active" onclick="switchHistTab('body',this)">CUERPO</button>
+      <button class="ht-btn" onclick="switchHistTab('entrenos',this)">ENTRENOS</button>
+    </div>
+
+    <!-- BODY TAB -->
+    <div id="ht-body">
+      <div class="sec-lbl">Registrar Medición</div>
+      <div class="prog-form">
+        <div class="prog-form-ttl">Nueva Entrada</div>
+        <div class="form-grid">
+          <div class="form-group"><div class="form-lbl">Peso (kg)</div><input class="form-inp" type="number" id="inPeso" step="0.1" placeholder="85.0"></div>
+          <div class="form-group"><div class="form-lbl">Fecha</div><input class="form-inp" type="date" id="inFecha"></div>
+          <div class="form-group"><div class="form-lbl">Cintura (cm)</div><input class="form-inp" type="number" id="inCintura" step="0.5" placeholder="—"></div>
+          <div class="form-group"><div class="form-lbl">Pecho (cm)</div><input class="form-inp" type="number" id="inPecho" step="0.5" placeholder="—"></div>
+        </div>
+        <button class="btn-primary" onclick="saveProgress()">GUARDAR MEDICIÓN</button>
       </div>
-      <button class="btn-primary" onclick="saveProgress()">GUARDAR MEDICIÓN</button>
+      <div class="sec-lbl">Objetivos Julio 5</div>
+      <div class="targets-box">
+        <div><div class="tgt-lbl">Pérdida peso</div><div class="tgt-val">–4 a –6 kg</div></div>
+        <div><div class="tgt-lbl">Cintura</div><div class="tgt-val">–3 a –5 cm</div></div>
+        <div><div class="tgt-lbl">Ritmo</div><div class="tgt-val neutral">300–450 g/sem</div></div>
+        <div><div class="tgt-lbl">Próx. ajuste</div><div class="tgt-val neutral">Semana 4</div></div>
+      </div>
+      <div class="sec-lbl">Historial corporal</div>
+      <div class="export-row">
+        <button class="btn-export accent" onclick="exportCSV()">⬇ EXPORTAR TODO (CSV)</button>
+      </div>
+      <div id="progHist"><div class="empty"><div class="empty-ico">📊</div>Sin registros aún.<br>Añade tu primera medición.</div></div>
     </div>
-    <div class="sec-lbl">Objetivos Julio 5</div>
-    <div class="targets-box">
-      <div><div class="tgt-lbl">Pérdida peso</div><div class="tgt-val">–4 a –6 kg</div></div>
-      <div><div class="tgt-lbl">Cintura</div><div class="tgt-val">–3 a –5 cm</div></div>
-      <div><div class="tgt-lbl">Ritmo</div><div class="tgt-val neutral">300–450 g/sem</div></div>
-      <div><div class="tgt-lbl">Próx. ajuste</div><div class="tgt-val neutral">Semana 4</div></div>
+
+    <!-- ENTRENOS TAB -->
+    <div id="ht-entrenos" style="display:none">
+      <div class="export-row">
+        <button class="btn-export accent" onclick="exportCSV()">⬇ EXPORTAR TODO (CSV)</button>
+      </div>
+      <div class="sec-lbl">Sesiones registradas</div>
+      <div id="logHist"><div class="empty"><div class="empty-ico">🏋️</div>Sin sesiones registradas aún.</div></div>
     </div>
-    <div class="sec-lbl">Historial</div>
-    <div id="progHist"><div class="empty"><div class="empty-ico">📊</div>Sin registros aún.<br>Añade tu primera medición.</div></div>
   </section>
 
 </main>
@@ -405,6 +447,41 @@ let progress = [];
 let rTimer = null;
 let rSecs = 0;
 let activeDayId = null;
+let dailyQuote = { text: '', author: '' };
+
+// Fallback quotes if API unavailable
+const FALLBACK_QUOTES = [
+  {text:"The only bad workout is the one that didn't happen.",author:"Unknown"},
+  {text:"Strength does not come from the body. It comes from the will of the soul.",author:"Gandhi"},
+  {text:"The pain you feel today will be the strength you feel tomorrow.",author:"Unknown"},
+  {text:"Take care of your body. It's the only place you have to live.",author:"Jim Rohn"},
+  {text:"What hurts today makes you stronger tomorrow.",author:"Jay Cutler"},
+  {text:"No matter how slow you go, you are still lapping everybody on the couch.",author:"Unknown"},
+  {text:"Strength is not about how much you can handle before you break. It's about how much you can endure after you've been broken.",author:"Unknown"},
+  {text:"Success usually comes to those who are too busy to be looking for it.",author:"Henry David Thoreau"},
+  {text:"All progress takes place outside the comfort zone.",author:"Michael John Bobak"},
+  {text:"The body achieves what the mind believes.",author:"Unknown"},
+  {text:"If something stands between you and your success, move it. Never be denied.",author:"Dwayne Johnson"},
+  {text:"Things may come to those who wait, but only the things left by those who hustle.",author:"Abraham Lincoln"},
+  {text:"You have to push past your perceived limits, push past that point you thought was as far as you can go.",author:"Drew Brees"},
+  {text:"If you want something you've never had, you must be willing to do something you've never done.",author:"Thomas Jefferson"},
+  {text:"The clock is ticking. Are you becoming the person you want to be?",author:"Greg Plitt"},
+  {text:"Once you are exercising regularly, the hardest thing is to stop it.",author:"Erin Gray"},
+  {text:"Exercise is king. Nutrition is queen. Put them together and you've got a kingdom.",author:"Jack LaLanne"},
+  {text:"Your body can stand almost anything. It's your mind that you have to convince.",author:"Unknown"},
+  {text:"Don't limit your challenges. Challenge your limits.",author:"Jerry Dunn"},
+  {text:"Champions aren't made in gyms. Champions are made from something deep inside them.",author:"Muhammad Ali"},
+  {text:"Motivation is what gets you started. Habit is what keeps you going.",author:"Jim Ryun"},
+  {text:"The difference between try and triumph is just a little umph.",author:"Marvin Phillips"},
+  {text:"If it doesn't challenge you, it doesn't change you.",author:"Fred DeVito"},
+  {text:"Sweat is just fat crying.",author:"Unknown"},
+  {text:"Your health is an investment, not an expense.",author:"Unknown"},
+  {text:"Do something today that your future self will thank you for.",author:"Sean Patrick Flanery"},
+  {text:"Discipline is doing what needs to be done even when you don't want to do it.",author:"Unknown"},
+  {text:"Rome wasn't built in a day, but they were laying bricks every hour.",author:"John Heywood"},
+  {text:"Strive for progress, not perfection.",author:"Unknown"},
+  {text:"Be stronger than your excuses.",author:"Unknown"},
+];
 
 const today = new Date();
 const todayStr = today.toISOString().split('T')[0];
@@ -422,6 +499,57 @@ function load() {
 }
 function saveLogs() { try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {} }
 function saveProgressStorage() { try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {} }
+
+// ══════════════════════════════════════════
+// DAILY QUOTE
+// ══════════════════════════════════════════
+function getDayOfYear() {
+  const s = new Date(today.getFullYear(), 0, 0);
+  return Math.floor((today - s) / 86400000);
+}
+
+async function loadQuote() {
+  const CACHE_KEY = 'pt_quotes';
+  const CACHE_TS  = 'pt_quotes_ts';
+  const TTL = 7 * 24 * 3600 * 1000; // 7 days
+  const doy = getDayOfYear();
+
+  try {
+    const ts = parseInt(localStorage.getItem(CACHE_TS) || '0');
+    let quotes = null;
+
+    if (Date.now() - ts < TTL) {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) quotes = JSON.parse(cached);
+    }
+
+    if (!quotes) {
+      const res = await fetch('https://type.fit/api/quotes');
+      if (res.ok) {
+        quotes = await res.json();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(quotes));
+        localStorage.setItem(CACHE_TS, String(Date.now()));
+      }
+    }
+
+    if (quotes && quotes.length) {
+      const q = quotes[doy % quotes.length];
+      dailyQuote = { text: q.text || q.quote || '', author: q.author || '' };
+    } else {
+      throw new Error('empty');
+    }
+  } catch(e) {
+    // Fallback to hardcoded quotes
+    dailyQuote = FALLBACK_QUOTES[doy % FALLBACK_QUOTES.length];
+  }
+
+  // Update hero if already rendered
+  const el = document.getElementById('quoteBlock');
+  if (el && dailyQuote.text) {
+    el.innerHTML = `<div class="hero-quote-text">"${dailyQuote.text}"</div>
+      ${dailyQuote.author ? `<div class="hero-quote-author">— ${dailyQuote.author.replace(', type.fit','')}</div>` : ''}`;
+  }
+}
 
 // ══════════════════════════════════════════
 // HEADER
@@ -474,8 +602,17 @@ function setDay(id) {
 // ══════════════════════════════════════════
 // TODAY TAB
 // ══════════════════════════════════════════
-function renderToday() {
+function renderToday(preserveState) {
   const c = document.getElementById('todayContent');
+  // Save scroll position and which cards are open
+  const mainEl = document.getElementById('mainEl');
+  const scrollTop = mainEl.scrollTop;
+  const openCards = {};
+  if (preserveState) {
+    document.querySelectorAll('[id^="ec-"]').forEach(el => {
+      openCards[el.id] = el.classList.contains('open');
+    });
+  }
 
   if (!activeDayId) {
     c.innerHTML = `
@@ -515,6 +652,12 @@ function renderToday() {
         <span>📌 ${day.exs.length} ejercicios</span>
         <span>⏱ ~60 min</span>
       </div>
+      <div class="hero-quote" id="quoteBlock">
+        ${dailyQuote.text
+          ? `<div class="hero-quote-text">"${dailyQuote.text}"</div>
+             ${dailyQuote.author ? `<div class="hero-quote-author">— ${dailyQuote.author.replace(', type.fit','')}</div>` : ''}`
+          : `<div class="hero-quote-text" style="color:var(--border)">Cargando frase...</div>`}
+      </div>
     </div>
     <div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:${pct}%"></div></div>
     <div class="prog-bar-lbl">${doneCnt}/${day.exs.length} ejercicios · ${pct}%</div>
@@ -528,9 +671,12 @@ function renderToday() {
     const exLog = dayLog[ex.id] || Array.from({length:ex.sets},()=>({kg:'',reps:'',done:false}));
     const doneSets = exLog.filter(s=>s.done).length;
     const allDone = doneSets >= ex.sets;
+    const isOpen = preserveState
+      ? (openCards[`ec-${ex.id}`] !== undefined ? openCards[`ec-${ex.id}`] : i===0)
+      : i===0;
 
     html += `
-      <div class="card ${i===0?'open':''}" id="ec-${ex.id}">
+      <div class="card ${isOpen?'open':''}" id="ec-${ex.id}">
         <div class="card-hdr" onclick="toggleCard('ec-${ex.id}')">
           <div>
             <div class="card-title">${ex.name}</div>
@@ -555,6 +701,8 @@ function renderToday() {
   });
 
   c.innerHTML = html;
+  // Restore scroll position after DOM update
+  if (preserveState) requestAnimationFrame(() => { mainEl.scrollTop = scrollTop; });
 }
 
 function renderSets(ex, exLog) {
@@ -605,7 +753,7 @@ function completeSet(exId, idx, restSecs, exName) {
   const wasDone = logs[todayStr][exId][idx].done;
   logs[todayStr][exId][idx].done = !wasDone;
   saveLogs();
-  renderToday();
+  renderToday(true);
   if (!wasDone) startRest(restSecs, exName);
 }
 
@@ -758,6 +906,101 @@ function showToast(msg) {
 }
 
 // ══════════════════════════════════════════
+// HISTORY TABS
+// ══════════════════════════════════════════
+function switchHistTab(tab, btn) {
+  document.getElementById('ht-body').style.display = tab==='body' ? 'block' : 'none';
+  document.getElementById('ht-entrenos').style.display = tab==='entrenos' ? 'block' : 'none';
+  document.querySelectorAll('.ht-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab==='entrenos') renderLogHistory();
+}
+
+// ══════════════════════════════════════════
+// WORKOUT LOG HISTORY
+// ══════════════════════════════════════════
+function renderLogHistory() {
+  const c = document.getElementById('logHist');
+  const dates = Object.keys(logs).sort((a,b)=>new Date(b)-new Date(a));
+  if (!dates.length) {
+    c.innerHTML='<div class="empty"><div class="empty-ico">🏋️</div>Sin sesiones registradas aún.</div>';
+    return;
+  }
+  c.innerHTML = dates.map(date => {
+    const dayLog = logs[date];
+    const ds = new Date(date+'T12:00:00').toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
+    // Detect which day type was trained
+    let dayName = '—';
+    let totalSets = 0;
+    const exBlocks = Object.keys(dayLog).map(exId => {
+      const day = DAYS.find(d => d.exs.some(e=>e.id===exId));
+      if (day) dayName = day.name;
+      const ex = day ? day.exs.find(e=>e.id===exId) : null;
+      const sets = dayLog[exId].filter(s=>s.done);
+      totalSets += sets.length;
+      if (!ex || !sets.length) return '';
+      return `<div class="log-ex-block">
+        <div class="log-ex-name">${ex.name}</div>
+        ${sets.map((s,i)=>`<div class="log-set-row">Set ${i+1}: <span>${s.kg||'—'}kg × ${s.reps||'—'} reps</span></div>`).join('')}
+      </div>`;
+    }).join('');
+    return `
+      <div class="log-session">
+        <div class="log-sess-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <div>
+            <div class="log-sess-date">${ds}</div>
+            <div class="log-sess-name">${dayName}</div>
+          </div>
+          <div class="log-sess-sets">${totalSets} sets ▾</div>
+        </div>
+        <div style="display:none">${exBlocks}</div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// EXPORT CSV
+// ══════════════════════════════════════════
+function exportCSV() {
+  let csv = '';
+
+  // SECTION 1: Body measurements
+  csv += '=== MEDICIONES CORPORALES ===\n';
+  csv += 'Fecha,Peso(kg),Cintura(cm),Pecho(cm)\n';
+  [...progress].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(e => {
+    csv += `${e.fecha},${e.peso},${e.cintura||''},${e.pecho||''}\n`;
+  });
+
+  csv += '\n=== HISTORIAL ENTRENOS ===\n';
+  csv += 'Fecha,Día,Ejercicio,Set,Kg,Reps\n';
+  Object.keys(logs).sort().forEach(date => {
+    const dayLog = logs[date];
+    Object.keys(dayLog).forEach(exId => {
+      const day = DAYS.find(d => d.exs.some(e=>e.id===exId));
+      const ex = day ? day.exs.find(e=>e.id===exId) : null;
+      if (!ex) return;
+      dayLog[exId].forEach((s,i) => {
+        if (s.done || s.kg || s.reps) {
+          csv += `${date},${day.name},"${ex.name}",${i+1},${s.kg||''},${s.reps||''}\n`;
+        }
+      });
+    });
+  });
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `ptdash_export_${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado ✓');
+}
+
+// ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
 load();
@@ -768,6 +1011,7 @@ renderToday();
 renderPlan();
 renderProgress();
 document.getElementById('inFecha').value = todayStr;
+loadQuote(); // async — updates hero quote block when ready
 </script>
 </body>
 </html>
