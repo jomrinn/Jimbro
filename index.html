@@ -578,18 +578,23 @@ async function loadFromCloud() {
     const data = await res.json();
     const remote = data.record;
 
-    // Merge: remote wins for all past days, merge today carefully
+    // Merge: remote wins for past days. For today, keep whichever has more completed sets.
     if (remote.logs) {
       Object.keys(remote.logs).forEach(date => {
-        // Remote always wins for past days. For today, only overwrite if local has no data
         if (date !== todayStr) {
           logs[date] = remote.logs[date];
-        } else if (!logs[todayStr] || Object.keys(logs[todayStr]).length === 0) {
-          logs[date] = remote.logs[date];
+        } else {
+          // Count done sets in both versions, keep the more complete one
+          const countDone = (dayLog) => Object.values(dayLog)
+            .filter(v => Array.isArray(v))
+            .reduce((acc, sets) => acc + sets.filter(s => s.done).length, 0);
+          const remoteCount = countDone(remote.logs[date]);
+          const localCount  = logs[todayStr] ? countDone(logs[todayStr]) : 0;
+          if (remoteCount >= localCount) logs[todayStr] = remote.logs[date];
         }
       });
       try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {}
-      renderToday(false); // re-render today tab with merged data
+      renderToday(false);
     }
     if (remote.progress && remote.progress.length) {
       const merged = [...remote.progress];
