@@ -97,6 +97,18 @@
     .hero-quote-text{font-family:'Barlow',sans-serif;font-style:italic;font-size:13px;color:var(--text-dim);line-height:1.55;}
     .hero-quote-author{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:5px;letter-spacing:.5px;}
 
+    /* ── SESSION TIMER ── */
+    .sess-timer-row{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);}
+    .sess-time{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:28px;color:var(--text);letter-spacing:2px;line-height:1;}
+    .sess-time.running{color:var(--accent);}
+    .sess-time.saved{color:var(--success);}
+    .sess-controls{display:flex;gap:8px;align-items:center;}
+    .btn-sess{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 14px;cursor:pointer;}
+    .btn-sess.start{border-color:var(--accent);color:var(--accent);}
+    .btn-sess.stop{border-color:var(--danger);color:var(--danger);}
+    .btn-sess.save{border-color:var(--success);color:var(--success);}
+    .btn-sess:active{opacity:.7;}
+
     /* ── PROGRESS BAR ── */
     .prog-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin:14px 0 4px;}
     .prog-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease;}
@@ -463,6 +475,10 @@ let rTimer = null;
 let rSecs = 0;
 let activeDayId = null;
 let dailyQuote = { text: '', author: '' };
+let sessTimer = null;
+let sessStart = null;
+let sessPaused = false;
+let sessElapsed = 0; // seconds accumulated before pause
 
 // Fallback quotes if API unavailable
 const FALLBACK_QUOTES = [
@@ -594,6 +610,80 @@ async function loadFromCloud() {
 async function manualSync() {
   await loadFromCloud();
   showToast('Sincronizado ✓');
+}
+
+// ══════════════════════════════════════════
+// SESSION TIMER
+// ══════════════════════════════════════════
+function fmtDuration(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function renderTimerControls(savedDuration) {
+  if (savedDuration) {
+    return `<button class="btn-sess" onclick="resetSessTimer()">RESET</button>`;
+  }
+  if (sessTimer) {
+    return `
+      <button class="btn-sess stop" onclick="pauseSessTimer()">PAUSA</button>
+      <button class="btn-sess save" onclick="saveSessTimer()">GUARDAR</button>`;
+  }
+  if (sessElapsed > 0) {
+    return `
+      <button class="btn-sess start" onclick="startSessTimer()">CONTINUAR</button>
+      <button class="btn-sess save" onclick="saveSessTimer()">GUARDAR</button>`;
+  }
+  return `<button class="btn-sess start" onclick="startSessTimer()">INICIAR</button>`;
+}
+
+function startSessTimer() {
+  if (sessTimer) return;
+  sessStart = Date.now() - sessElapsed * 1000;
+  sessTimer = setInterval(() => {
+    sessElapsed = Math.floor((Date.now() - sessStart) / 1000);
+    const el = document.getElementById('sessDisplay');
+    const ctrl = document.getElementById('sessControls');
+    if (el) { el.textContent = fmtDuration(sessElapsed); el.className = 'sess-time running'; }
+    if (ctrl) ctrl.innerHTML = renderTimerControls(null);
+  }, 1000);
+  // Re-render controls immediately
+  const ctrl = document.getElementById('sessControls');
+  if (ctrl) ctrl.innerHTML = renderTimerControls(null);
+  const el = document.getElementById('sessDisplay');
+  if (el) el.className = 'sess-time running';
+}
+
+function pauseSessTimer() {
+  clearInterval(sessTimer);
+  sessTimer = null;
+  const ctrl = document.getElementById('sessControls');
+  if (ctrl) ctrl.innerHTML = renderTimerControls(null);
+}
+
+function saveSessTimer() {
+  clearInterval(sessTimer);
+  sessTimer = null;
+  if (!logs[todayStr]) logs[todayStr] = {};
+  logs[todayStr]._duration = sessElapsed;
+  saveLogs();
+  const el = document.getElementById('sessDisplay');
+  const ctrl = document.getElementById('sessControls');
+  if (el) { el.textContent = fmtDuration(sessElapsed); el.className = 'sess-time saved'; }
+  if (ctrl) ctrl.innerHTML = renderTimerControls(sessElapsed);
+  showToast(`Sesión guardada: ${fmtDuration(sessElapsed)}`);
+}
+
+function resetSessTimer() {
+  clearInterval(sessTimer);
+  sessTimer = null;
+  sessElapsed = 0;
+  if (logs[todayStr]) delete logs[todayStr]._duration;
+  saveLogs();
+  renderToday(true);
 }
 
 // ══════════════════════════════════════════
@@ -746,7 +836,14 @@ function renderToday(preserveState) {
       <div class="hero-meta">
         <span>💪 ${day.sub}</span>
         <span>📌 ${day.exs.length} ejercicios</span>
-        <span>⏱ ~60 min</span>
+      </div>
+      <div class="sess-timer-row">
+        <div class="sess-time ${sessTimer ? 'running' : (dayLog._duration ? 'saved' : '')}" id="sessDisplay">
+          ${dayLog._duration ? fmtDuration(dayLog._duration) : (sessTimer ? fmtDuration(sessElapsed) : '00:00')}
+        </div>
+        <div class="sess-controls" id="sessControls">
+          ${renderTimerControls(dayLog._duration)}
+        </div>
       </div>
       <div class="hero-quote" id="quoteBlock">
         ${dailyQuote.text
@@ -1047,7 +1144,7 @@ function renderLogHistory() {
             <div class="log-sess-date">${ds}</div>
             <div class="log-sess-name">${dayName}</div>
           </div>
-          <div class="log-sess-sets">${totalSets} sets ▾</div>
+          <div class="log-sess-sets">${totalSets} sets${dayLog._duration ? ` · ⏱ ${fmtDuration(dayLog._duration)}` : ''} ▾</div>
         </div>
         <div style="display:none">${exBlocks}</div>
       </div>`;
