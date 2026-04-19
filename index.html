@@ -1159,11 +1159,22 @@ function renderLogHistory() {
             <div class="log-sess-date">${ds}</div>
             <div class="log-sess-name">${dayName}</div>
           </div>
-          <div class="log-sess-sets">${totalSets} sets${dayLog._duration ? ` · ⏱ ${fmtDuration(dayLog._duration)}` : ''} ▾</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="log-sess-sets">${totalSets} sets${dayLog._duration ? ` · ⏱ ${fmtDuration(dayLog._duration)}` : ''} ▾</div>
+            <button class="btn-del" onclick="event.stopPropagation();deleteSession('${date}')" title="Borrar sesión">✕</button>
+          </div>
         </div>
         <div style="display:none">${exBlocks}</div>
       </div>`;
   }).join('');
+}
+
+function deleteSession(date) {
+  if (!confirm(`¿Borrar la sesión del ${new Date(date+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})}?`)) return;
+  delete logs[date];
+  saveLogs();
+  renderLogHistory();
+  showToast('Sesión eliminada');
 }
 
 // ══════════════════════════════════════════
