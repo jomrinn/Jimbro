@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>PT.DASH — Entrenador Personal</title>
+  <title>JIMBRO — Entrenador Personal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
@@ -228,16 +228,31 @@
     .hist-tabs{display:flex;gap:8px;margin-bottom:12px;}
     .ht-btn{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:9px 8px;border-radius:4px;cursor:pointer;text-align:center;}
     .ht-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+
+    /* ── SYNC ── */
+    .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);display:inline-block;margin-right:5px;transition:background .3s;}
+    .sync-dot.ok{background:var(--success);}
+    .sync-dot.err{background:var(--danger);}
+    .sync-dot.spin{background:var(--accent);animation:pulse .8s infinite;}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .sync-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;}
+    .sync-lbl:active{opacity:.6;}
   </style>
 </head>
 <body>
 
 <!-- HEADER -->
 <header class="hdr">
-  <div class="hdr-logo">PT.DASH</div>
-  <div class="hdr-right">
-    <div class="hdr-date" id="hdrDate"></div>
-    <div class="hdr-week" id="hdrWeek">SEMANA 1 · FASE 1</div>
+  <div class="hdr-logo">JIMBRO</div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+    <div class="hdr-right">
+      <div class="hdr-date" id="hdrDate"></div>
+      <div class="hdr-week" id="hdrWeek">SEMANA 1 · FASE 1</div>
+    </div>
+    <div class="sync-lbl" onclick="manualSync()" title="Tocar para sincronizar">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncTxt">SYNC</span>
+    </div>
   </div>
 </header>
 
@@ -497,8 +512,85 @@ function load() {
     if (!localStorage.getItem('pt_start')) localStorage.setItem('pt_start', todayStr);
   } catch(e) {}
 }
-function saveLogs() { try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {} }
-function saveProgressStorage() { try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {} }
+function saveLogs() { try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {} syncToCloud(); }
+function saveProgressStorage() { try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {} syncToCloud(); }
+
+// ══════════════════════════════════════════
+// JSONBIN CLOUD SYNC
+// ══════════════════════════════════════════
+const BIN_ID  = '69e4bb57aaba88219715b7c6';
+const BIN_KEY = '$2a$10$XF/qZh4tJqSdqXbmshcQLeAIZ5efx37DuU/hoKDXnUnLDuouB9rTG';
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+let syncTimeout = null;
+
+function setSyncStatus(state, txt) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncTxt');
+  if (!dot || !lbl) return;
+  dot.className = `sync-dot ${state}`;
+  lbl.textContent = txt;
+}
+
+function syncToCloud() {
+  // Debounce — wait 2s after last change before pushing
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    setSyncStatus('spin', 'SYNC...');
+    try {
+      const res = await fetch(BIN_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
+        body: JSON.stringify({ logs, progress })
+      });
+      if (!res.ok) throw new Error(res.status);
+      setSyncStatus('ok', 'SYNC ✓');
+      setTimeout(() => setSyncStatus('ok', 'SYNC'), 3000);
+    } catch(e) {
+      setSyncStatus('err', 'SYNC ✗');
+    }
+  }, 2000);
+}
+
+async function loadFromCloud() {
+  setSyncStatus('spin', 'SYNC...');
+  try {
+    const res = await fetch(BIN_URL + '/latest', {
+      headers: { 'X-Master-Key': BIN_KEY }
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const remote = data.record;
+
+    // Merge: remote wins for any date not in local, local wins for today
+    if (remote.logs) {
+      Object.keys(remote.logs).forEach(date => {
+        if (date !== todayStr && !logs[date]) logs[date] = remote.logs[date];
+        else if (date !== todayStr) logs[date] = remote.logs[date]; // remote always wins for past days
+      });
+      saveLogs();
+    }
+    if (remote.progress && remote.progress.length) {
+      // Merge by fecha, remote wins
+      const merged = [...remote.progress];
+      progress.forEach(p => {
+        if (!merged.find(m => m.fecha === p.fecha)) merged.push(p);
+      });
+      progress = merged.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+      saveProgressStorage();
+      renderProgress();
+    }
+    setSyncStatus('ok', 'SYNC ✓');
+    setTimeout(() => setSyncStatus('ok', 'SYNC'), 3000);
+  } catch(e) {
+    setSyncStatus('err', 'SYNC ✗');
+  }
+}
+
+async function manualSync() {
+  await loadFromCloud();
+  showToast('Sincronizado ✓');
+}
 
 // ══════════════════════════════════════════
 // DAILY QUOTE
@@ -1011,7 +1103,8 @@ renderToday();
 renderPlan();
 renderProgress();
 document.getElementById('inFecha').value = todayStr;
-loadQuote(); // async — updates hero quote block when ready
+loadQuote();
+loadFromCloud(); // pull remote data on every app open
 </script>
 </body>
 </html>
