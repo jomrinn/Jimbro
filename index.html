@@ -613,6 +613,16 @@ async function loadFromCloud() {
 }
 
 async function manualSync() {
+  setSyncStatus('spin', 'SYNC...');
+  // Step 1: push local data up first
+  try {
+    await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
+      body: JSON.stringify({ logs, progress })
+    });
+  } catch(e) {}
+  // Step 2: pull and merge
   await loadFromCloud();
   showToast('Sincronizado ✓');
 }
