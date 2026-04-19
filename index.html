@@ -562,22 +562,26 @@ async function loadFromCloud() {
     const data = await res.json();
     const remote = data.record;
 
-    // Merge: remote wins for any date not in local, local wins for today
+    // Merge: remote wins for all past days, merge today carefully
     if (remote.logs) {
       Object.keys(remote.logs).forEach(date => {
-        if (date !== todayStr && !logs[date]) logs[date] = remote.logs[date];
-        else if (date !== todayStr) logs[date] = remote.logs[date]; // remote always wins for past days
+        // Remote always wins for past days. For today, only overwrite if local has no data
+        if (date !== todayStr) {
+          logs[date] = remote.logs[date];
+        } else if (!logs[todayStr] || Object.keys(logs[todayStr]).length === 0) {
+          logs[date] = remote.logs[date];
+        }
       });
-      saveLogs();
+      try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {}
+      renderToday(false); // re-render today tab with merged data
     }
     if (remote.progress && remote.progress.length) {
-      // Merge by fecha, remote wins
       const merged = [...remote.progress];
       progress.forEach(p => {
         if (!merged.find(m => m.fecha === p.fecha)) merged.push(p);
       });
       progress = merged.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-      saveProgressStorage();
+      try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {}
       renderProgress();
     }
     setSyncStatus('ok', 'SYNC ✓');
