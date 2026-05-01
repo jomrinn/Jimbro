@@ -515,7 +515,7 @@ const FALLBACK_QUOTES = [
 ];
 
 const today = new Date();
-const todayStr = today.toISOString().split('T')[0];
+const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 const todayWday = today.getDay();
 
 // ══════════════════════════════════════════
@@ -528,8 +528,8 @@ function load() {
     if (!localStorage.getItem('pt_start')) localStorage.setItem('pt_start', todayStr);
   } catch(e) {}
 }
-function saveLogs() { try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {} syncToCloud(); }
-function saveProgressStorage() { try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {} syncToCloud(); }
+function saveLogs() { try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {} scheduleSyncToCloud(); }
+function saveProgressStorage() { try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {} scheduleSyncToCloud(); }
 
 // ══════════════════════════════════════════
 // JSONBIN CLOUD SYNC
@@ -548,24 +548,45 @@ function setSyncStatus(state, txt) {
   lbl.textContent = txt;
 }
 
-function syncToCloud() {
-  // Debounce — wait 2s after last change before pushing
+function scheduleSyncToCloud() {
   clearTimeout(syncTimeout);
-  syncTimeout = setTimeout(async () => {
-    setSyncStatus('spin', 'SYNC...');
-    try {
-      const res = await fetch(BIN_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
-        body: JSON.stringify({ logs, progress })
-      });
-      if (!res.ok) throw new Error(res.status);
-      setSyncStatus('ok', 'SYNC ✓');
-      setTimeout(() => setSyncStatus('ok', 'SYNC'), 3000);
-    } catch(e) {
-      setSyncStatus('err', 'SYNC ✗');
+  syncTimeout = setTimeout(() => safePush(), 2000);
+}
+
+async function safePush() {
+  // Always fetch remote first, merge, then push — prevents overwriting history
+  setSyncStatus('spin', 'SYNC...');
+  try {
+    const res = await fetch(BIN_URL + '/latest', { headers: { 'X-Master-Key': BIN_KEY } });
+    if (res.ok) {
+      const data = await res.json();
+      const remote = data.record || {};
+      // Merge remote history into local (remote wins for past days not in local)
+      if (remote.logs) {
+        Object.keys(remote.logs).forEach(date => {
+          if (!logs[date]) logs[date] = remote.logs[date];
+        });
+        try { localStorage.setItem('pt_logs', JSON.stringify(logs)); } catch(e) {}
+      }
+      if (remote.progress) {
+        remote.progress.forEach(rp => {
+          if (!progress.find(p => p.fecha === rp.fecha)) progress.push(rp);
+        });
+        progress.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+        try { localStorage.setItem('pt_progress', JSON.stringify(progress)); } catch(e) {}
+      }
     }
-  }, 2000);
+    // Now push the fully merged dataset
+    await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
+      body: JSON.stringify({ logs, progress })
+    });
+    setSyncStatus('ok', 'SYNC ✓');
+    setTimeout(() => setSyncStatus('ok', 'SYNC'), 3000);
+  } catch(e) {
+    setSyncStatus('err', 'SYNC ✗');
+  }
 }
 
 async function loadFromCloud() {
@@ -1134,24 +1155,34 @@ function renderLogHistory() {
     c.innerHTML='<div class="empty"><div class="empty-ico">🏋️</div>Sin sesiones registradas aún.</div>';
     return;
   }
-  c.innerHTML = dates.map(date => {
+  const rendered = dates.map(date => {
     const dayLog = logs[date];
     const ds = new Date(date+'T12:00:00').toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
-    // Detect which day type was trained
+
+    // Skip internal keys (starting with _)
+    const exIds = Object.keys(dayLog).filter(k => !k.startsWith('_'));
+    if (!exIds.length) return '';
+
+    // Detect day name from first recognised exercise
     let dayName = '—';
+    for (const exId of exIds) {
+      const day = DAYS.find(d => d.exs.some(e => e.id === exId));
+      if (day) { dayName = day.name; break; }
+    }
+
     let totalSets = 0;
-    const exBlocks = Object.keys(dayLog).map(exId => {
-      const day = DAYS.find(d => d.exs.some(e=>e.id===exId));
-      if (day) dayName = day.name;
-      const ex = day ? day.exs.find(e=>e.id===exId) : null;
-      const sets = dayLog[exId].filter(s=>s.done);
+    const exBlocks = exIds.map(exId => {
+      const day = DAYS.find(d => d.exs.some(e => e.id === exId));
+      const ex = day ? day.exs.find(e => e.id === exId) : null;
+      const sets = Array.isArray(dayLog[exId]) ? dayLog[exId].filter(s => s.done) : [];
       totalSets += sets.length;
       if (!ex || !sets.length) return '';
       return `<div class="log-ex-block">
         <div class="log-ex-name">${ex.name}</div>
-        ${sets.map((s,i)=>`<div class="log-set-row">Set ${i+1}: <span>${s.kg||'—'}kg × ${s.reps||'—'} reps</span></div>`).join('')}
+        ${sets.map((s,i) => `<div class="log-set-row">Set ${i+1}: <span>${s.kg||'—'}kg × ${s.reps||'—'} reps</span></div>`).join('')}
       </div>`;
     }).join('');
+
     return `
       <div class="log-session">
         <div class="log-sess-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
@@ -1166,7 +1197,9 @@ function renderLogHistory() {
         </div>
         <div style="display:none">${exBlocks}</div>
       </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
+
+  c.innerHTML = rendered || '<div class="empty"><div class="empty-ico">🏋️</div>Sin sesiones registradas aún.</div>';
 }
 
 function deleteSession(date) {
